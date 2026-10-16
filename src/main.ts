@@ -8,7 +8,17 @@ import {
     updateProduct,
     deleteProduct,
 } from "./modules/products/product.service";
+import {
+    createTable,
+    getTableById,
+    getAllTables,
+    updateTableById,
+    deleteTableById,
+} from "./modules/tables/table.service";
 import { createProductSchema } from "./modules/products/product.validation";
+import { createTableSchema } from "./modules/tables/table.validation";
+
+
 
 async function showProductsMenu(terminal: ReturnType<typeof createInterface>) {
     while (true) {
@@ -101,11 +111,133 @@ async function showCategoriesMenu(terminal: ReturnType<typeof createInterface>) 
 }
 
 async function showTablesMenu(terminal: ReturnType<typeof createInterface>) {
-    console.log("\n=== CRUD MESAS ===");
-    console.log("(Próximamente - estructura lista en src/modules/tables/)");
-    await terminal.question("\nPresione Enter para volver...");
-}
+    while (true) {
+        console.log("\n=== CRUD MESAS ===");
+        console.log("1. Crear mesa");
+        console.log("2. Listar mesas");
+        console.log("3. Obtener mesa por ID");
+        console.log("4. Actualizar mesa");
+        console.log("5. Eliminar mesa");
+        console.log("6. Volver al menú principal");
 
+        const option = await terminal.question("\nSeleccione una opción: ");
+
+        switch (option) {
+            case "1": {
+                const answers = {
+                    name: await terminal.question("Nombre de la mesa: "),
+                    capacity: await terminal.question("Capacidad: "),
+                    status: await terminal.question("Estado (AVAILABLE/OCCUPIED/RESERVED, Enter para AVAILABLE): "),
+                };
+                const validation = createTableSchema.safeParse(answers);
+
+                if (!validation.success) {
+                    console.error("No se pudo crear la mesa:");
+                    for (const issue of validation.error.issues) {
+                        console.error(`- ${issue.path.join(".")}: ${issue.message}`);
+                    }
+                    break;
+                }
+
+                const table = await createTable(validation.data);
+                console.log("Mesa creada:", table);
+                break;
+            }
+            case "2": {
+                const tables = await getAllTables();
+                console.log("\nLista de mesas:");
+                console.table(tables.map((table) => ({
+                    ID: table.id,
+                    Nombre: table.name,
+                    Capacidad: table.capacity,
+                    Estado: table.status,
+                })));
+                break;
+            }
+            case "3": {
+                const id = Number(await terminal.question("ID de la mesa: "));
+                if (!Number.isInteger(id) || id <= 0) {
+                    console.error("El ID debe ser un número entero positivo.");
+                    break;
+                }
+
+                const table = await getTableById(id);
+                if (table) {
+                    console.log("Mesa encontrada:", table);
+                } else {
+                    console.log("Mesa no encontrada.");
+                }
+                break;
+            }
+            case "4": {
+                const id = Number(await terminal.question("ID de la mesa a actualizar: "));
+                if (!Number.isInteger(id) || id <= 0) {
+                    console.error("El ID debe ser un número entero positivo.");
+                    break;
+                }
+
+                const existingTable = await getTableById(id);
+                if (!existingTable) {
+                    console.log("Mesa no encontrada.");
+                    break;
+                }
+
+                const answers = {
+                    name: await terminal.question("Nuevo nombre (Enter para mantener): "),
+                    capacity: await terminal.question("Nueva capacidad (Enter para mantener): "),
+                    status: await terminal.question("Nuevo estado (AVAILABLE/OCCUPIED/RESERVED, Enter para mantener): "),
+                };
+                const updates = Object.fromEntries(
+                    Object.entries(answers).filter(([, value]) => value !== ""),
+                );
+
+                if (Object.keys(updates).length === 0) {
+                    console.log("No se realizaron cambios.");
+                    break;
+                }
+
+                const validation = createTableSchema.partial().safeParse(updates);
+                if (!validation.success) {
+                    console.error("No se pudo actualizar la mesa:");
+                    for (const issue of validation.error.issues) {
+                        console.error(`- ${issue.path.join(".")}: ${issue.message}`);
+                    }
+                    break;
+                }
+
+                const validatedUpdates = validation.data;
+                const table = await updateTableById(id, {
+                    ...(validatedUpdates.name !== undefined && { name: validatedUpdates.name }),
+                    ...(validatedUpdates.capacity !== undefined && { capacity: validatedUpdates.capacity }),
+                    ...(validatedUpdates.status !== undefined && { status: validatedUpdates.status }),
+                });
+                console.log("Mesa actualizada:", table);
+                break;
+            }
+            case "5": {
+                const id = Number(await terminal.question("ID de la mesa a eliminar: "));
+                if (!Number.isInteger(id) || id <= 0) {
+                    console.error("El ID debe ser un número entero positivo.");
+                    break;
+                }
+
+                const existingTable = await getTableById(id);
+                if (!existingTable) {
+                    console.log("Mesa no encontrada.");
+                    break;
+                }
+
+                await deleteTableById(id);
+                console.log("Mesa eliminada correctamente.");
+                break;
+            }
+            case "6":
+                return;
+            default:
+                console.log("Opción inválida.");
+        }
+    }
+    }
 async function main() {
     const terminal = createInterface({ input: stdin, output: stdout });
 

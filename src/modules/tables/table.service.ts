@@ -20,14 +20,14 @@ export async function getAllTables() {
     });
 }
 
-export async function updateTable(id: number, input: Partial<CreateTableInput>) {
+export async function updateTableById(id: number, input: Partial<CreateTableInput>) {
     return prisma.table.update({
         where: { id },
         data: input satisfies Prisma.TableUpdateInput,
     });
 }
 
-export async function deleteTable(id: number) {
+export async function deleteTableById(id: number) {
     return prisma.table.delete({
         where: { id },
     });
